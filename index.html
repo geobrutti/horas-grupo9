@@ -104,9 +104,20 @@ form{display:flex;flex-direction:column;gap:14px}
 .line{display:flex;justify-content:space-between;align-items:center;gap:8px}
 
 .who-pick{display:flex;flex-wrap:wrap;gap:6px}
-.who-pick button{display:flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--line);background:var(--sunk);border-radius:999px;padding:3px 11px 3px 3px;font-weight:600;font-size:.88rem;color:var(--muted)}
-.who-pick button[aria-pressed="true"]{background:var(--surface);color:var(--fg);border-color:var(--pc);box-shadow:0 0 0 1px var(--pc)}
-.who-pick button[aria-pressed="false"] .av{opacity:.45}
+.who-pick button{display:flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px 3px 3px;font-weight:600;font-size:.88rem;color:var(--fg)}
+.who-pick button:hover{border-color:var(--muted)}
+.who-pick button[aria-pressed="false"] .av{background:var(--line);color:var(--muted)}
+.who-pick button[aria-pressed="true"]{background:color-mix(in srgb,var(--pc) 14%,var(--surface));border-color:var(--pc)}
+.who-pick button[aria-pressed="true"]::after{content:"";width:9px;height:5px;border-left:2px solid var(--pc);border-bottom:2px solid var(--pc);transform:rotate(-45deg) translateY(-2px);margin-left:2px}
+.who-pick button.all{--pc:var(--accent);padding-left:6px}
+.who-pick button[disabled]{cursor:default;opacity:.8}
+.mini-avs{display:inline-flex}
+.mini-avs .av{--s:22px;border:2px solid var(--surface);font-size:.55rem}
+.mini-avs .av+.av{margin-left:-8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.row3 input{padding-inline:8px}
+.hint{font-size:.8rem;color:var(--muted);margin:-6px 0 0}
+.range{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
 
 .cats{display:flex;flex-wrap:wrap;gap:6px}
 .cats button{cursor:pointer;border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:5px 10px;font-size:.85rem;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
@@ -129,7 +140,7 @@ form{display:flex;flex-direction:column;gap:14px}
 .entry{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 10px;border-radius:12px}
 .entry:hover{background:var(--sunk)}
 .entry.editing{background:var(--accent-soft)}
-.entry .av{grid-row:1/3}
+.entry > .av,.entry > .mini-avs{grid-row:1/3}
 .entry .meta{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;min-width:0}
 .entry .person{font-weight:600}
 .entry .task{grid-column:2/3;color:var(--muted);font-size:.88rem;overflow-wrap:anywhere}
@@ -194,20 +205,20 @@ td.zero{color:var(--line)}
       </div>
       <form id="form" novalidate>
         <div class="field">
-          <div class="line"><span class="label" id="for-l">Para quién</span><button type="button" class="ghost" id="all-btn">Los 3</button></div>
+          <span class="label" id="for-l">Para quién</span>
           <div class="who-pick" id="for" role="group" aria-labelledby="for-l"></div>
         </div>
         <div class="field">
           <span class="label" id="cat-l">Actividad</span>
           <div class="cats" id="cats" role="radiogroup" aria-labelledby="cat-l"></div>
         </div>
-        <div class="row2">
-          <div class="field"><label class="label" for="date">Fecha</label><input type="date" id="date" required></div>
-          <div class="field">
-            <label class="label" for="hours">Horas</label>
-            <input id="hours" inputmode="decimal" placeholder="1,5 · 1:30" required>
-          </div>
+        <div class="field"><label class="label" for="date">Fecha</label><input type="date" id="date" required></div>
+        <div class="row3">
+          <div class="field"><label class="label" for="start">Desde</label><input type="time" id="start"></div>
+          <div class="field"><label class="label" for="end">Hasta</label><input type="time" id="end"></div>
+          <div class="field"><label class="label" for="hours">Horas</label><input id="hours" inputmode="decimal" placeholder="1:30" required></div>
         </div>
+        <p class="hint">Poné desde y hasta, o escribí directo las horas.</p>
         <div class="quick" aria-label="Duraciones rápidas">
           <button type="button" data-h="0.25">0:15</button><button type="button" data-h="0.5">0:30</button><button type="button" data-h="1">1:00</button><button type="button" data-h="1.5">1:30</button><button type="button" data-h="2">2:00</button><button type="button" data-h="3">3:00</button>
         </div>
@@ -286,20 +297,26 @@ $('sprint').append(...SPRINTS.map(x=>el('option',{value:x.name},x.name)));
 $('sprint').value=sprintFor();
 $('sprint').addEventListener('change',()=>ls.set('sprint',$('sprint').value));
 st.me=teamById[ls.get('me')]?ls.get('me'):'';
-if(st.me)st.sel.add(st.me);
+st.sel.add(st.me||TEAM[0].id);
 
 /* render */
 function renderMe(){
   const box=$('me');box.textContent='';
   TEAM.forEach(t=>box.append(el('button',{type:'button','aria-pressed':String(st.me===t.id),style:`--pc:var(${t.c})`,onclick:()=>{
-    st.me=t.id;ls.set('me',t.id);if(!st.editing)st.sel=new Set([t.id]);renderMe();renderFor()}},av(t,'sm'),t.short)));
+    st.me=t.id;ls.set('me',t.id);if(!st.editing&&st.sel.size<TEAM.length)st.sel=new Set([t.id]);renderMe();renderFor()}},av(t,'sm'),t.short)));
 }
 function renderFor(){
   const box=$('for');box.textContent='';
-  TEAM.forEach(t=>box.append(el('button',{type:'button','aria-pressed':String(st.sel.has(t.id)),style:`--pc:var(${t.c})`,onclick:()=>{
-    if(st.editing){st.sel=new Set([t.id])}else if(st.sel.has(t.id))st.sel.delete(t.id);else st.sel.add(t.id);renderFor()}},av(t,'sm'),t.short)));
-  $('all-btn').hidden=!!st.editing;
-  $('all-btn').textContent=st.sel.size===TEAM.length?(st.me?'Solo yo':'Ninguno'):'Los 3';
+  const locked=!!(st.editing&&st.editing.group);
+  const all=st.sel.size===TEAM.length;
+  if(!st.editing)box.append(el('button',{type:'button',class:'all','aria-pressed':String(all),onclick:()=>{
+    if(all){st.sel=new Set([st.me||TEAM[0].id])}else{st.sel=new Set(TEAM.map(t=>t.id));if(['dev','doc','otro','diseno','invest','testing'].includes(st.cat)){st.cat='daily';renderCats()}}
+    renderFor()}},el('span',{class:'mini-avs'},TEAM.map(t=>av(t))),'Los 3'));
+  TEAM.forEach(t=>box.append(el('button',{type:'button','aria-pressed':String(st.sel.has(t.id)),disabled:locked,style:`--pc:var(${t.c})`,onclick:()=>{
+    if(st.editing){st.sel=new Set([t.id])}
+    else if(st.sel.has(t.id)){if(st.sel.size>1)st.sel.delete(t.id)}
+    else st.sel.add(t.id);
+    renderFor()}},av(t,'sm'),t.short)));
 }
 function renderCats(){
   const box=$('cats');box.textContent='';
@@ -339,6 +356,15 @@ function renderTabs(){
   box.append(el('button',{type:'button','aria-pressed':String(!st.person),onclick:()=>{st.person='';renderTabs();renderList()}},'Todos'));
   TEAM.forEach(t=>box.append(el('button',{type:'button','aria-pressed':String(st.person===t.id),style:`--pc:var(${t.c})`,onclick:()=>{st.person=t.id;renderTabs();renderList()}},el('span',{class:'dot'}),t.short)));
 }
+function itemsOf(list){
+  const out=[],seen={};
+  list.forEach(e=>{
+    if(e.group&&!st.person){if(seen[e.group]){seen[e.group].rows.push(e);return}const it={key:'g:'+e.group,group:e.group,rows:[e]};seen[e.group]=it;out.push(it)}
+    else out.push({key:e.id,group:null,rows:[e]});
+  });
+  out.forEach(it=>{if(it.rows.length===1)it.group=null});
+  return out;
+}
 function renderList(){
   const box=$('list');box.textContent='';
   if(!st.loaded){box.append(el('div',{class:'empty'},'Cargando registros…'));return}
@@ -346,20 +372,22 @@ function renderList(){
   if(!rows.length){box.append(el('div',{class:'empty'},st.entries.length?'No hay registros con estos filtros.':'Todavía no hay horas. Elegí quién sos arriba y cargá las primeras.'));return}
   const days={};rows.forEach(e=>(days[e.date]=days[e.date]||[]).push(e));
   Object.keys(days).sort().reverse().forEach(d=>{
-    const list=days[d].sort((a,b)=>TEAM.indexOf(person(a.member))-TEAM.indexOf(person(b.member))||(a.createdAt||0)-(b.createdAt||0));
+    const list=days[d].sort((a,b)=>(a.start||'99').localeCompare(b.start||'99')||TEAM.indexOf(person(a.member))-TEAM.indexOf(person(b.member))||(a.createdAt||0)-(b.createdAt||0));
     const tot=list.reduce((a,e)=>a+e.hours,0);
     const day=el('div',{class:'day'},el('div',{class:'day-h'},el('span',{class:'d'},fmtDate(d)),el('span',{class:'num muted'},fmtH(tot)+' h')));
-    list.forEach(e=>{
-      const p=person(e.member),c=catById[e.category]||catById.otro;
+    itemsOf(list).forEach(it=>{
+      const e=it.rows[0],c=catById[e.category]||catById.otro,multi=it.rows.length>1;
+      const ps=it.rows.map(r=>person(r.member)).sort((a,b)=>TEAM.indexOf(a)-TEAM.indexOf(b));
+      const who=multi?(ps.length===TEAM.length?'Los 3':ps.map(p=>p.short).join(' y ')):ps[0].short;
       const acts=el('div',{class:'acts'});
-      if(st.canWrite&&st.db){
-        if(st.confirmDel===e.id)acts.append(el('button',{type:'button',class:'ghost danger',onclick:()=>delEntry(e.id)},'Borrar'),el('button',{type:'button',class:'ghost',onclick:()=>{st.confirmDel=null;renderList()}},'No'));
-        else acts.append(el('button',{type:'button',class:'ghost',onclick:()=>startEdit(e)},'Editar'),el('button',{type:'button',class:'ghost',onclick:()=>{st.confirmDel=e.id;renderList()}},'Borrar'));
+      if(st.db){
+        if(st.confirmDel===it.key)acts.append(el('button',{type:'button',class:'ghost danger',onclick:()=>delItem(it)},multi?'Borrar para todos':'Borrar'),el('button',{type:'button',class:'ghost',onclick:()=>{st.confirmDel=null;renderList()}},'No'));
+        else acts.append(el('button',{type:'button',class:'ghost',onclick:()=>startEdit(it)},'Editar'),el('button',{type:'button',class:'ghost',onclick:()=>{st.confirmDel=it.key;renderList()}},'Borrar'));
       }
-      day.append(el('div',{class:'entry'+(st.editing===e.id?' editing':'')+(st.confirmDel===e.id?' confirm':'')},
-        av(p),
-        el('div',{class:'meta'},el('span',{class:'person'},p.short),el('span',{class:'pill',style:`--kc:var(${c.c})`},c.label),e.sprint?el('span',{class:'tag'},e.sprint):null),
-        el('div',{class:'right'},el('span',{class:'hrs'},fmtHM(e.hours)),acts),
+      day.append(el('div',{class:'entry'+(st.editing&&st.editing.key===it.key?' editing':'')+(st.confirmDel===it.key?' confirm':'')},
+        multi?el('span',{class:'mini-avs','aria-hidden':'true'},ps.map(p=>av(p))):av(ps[0]),
+        el('div',{class:'meta'},el('span',{class:'person'},who),el('span',{class:'pill',style:`--kc:var(${c.c})`},c.label),e.start&&e.end?el('span',{class:'range'},e.start+'–'+e.end):null,e.sprint?el('span',{class:'tag'},e.sprint):null),
+        el('div',{class:'right'},el('span',{class:'hrs'},fmtHM(e.hours)+(multi?' c/u':'')),acts),
         e.task?el('div',{class:'task'},e.task):null));
     });
     box.append(day);
@@ -381,32 +409,37 @@ function renderData(){renderSprints();renderPeople();renderList();renderMatrix()
 /* actions */
 function applyWrite(){$('submit').disabled=!st.db}
 function writeErr(e){console.error(e);msg('No se pudo guardar. Revisá la conexión y probá de nuevo.',true)}
-function startEdit(e){
-  st.editing=e.id;st.sel=new Set([e.member]);st.cat=catById[e.category]?e.category:'otro';
-  $('date').value=e.date;$('hours').value=fmtH(e.hours);$('sprint').value=SPRINTS.some(x=>x.name===e.sprint)?e.sprint:sprintFor();$('task').value=e.task||'';
+function startEdit(it){
+  const e=it.rows[0];
+  st.editing={key:it.key,group:it.group,ids:it.rows.map(r=>r.id)};st.sel=new Set(it.rows.map(r=>r.member));st.cat=catById[e.category]?e.category:'otro';
+  $('date').value=e.date;$('start').value=e.start||'';$('end').value=e.end||'';$('hours').value=fmtHM(e.hours);$('sprint').value=SPRINTS.some(x=>x.name===e.sprint)?e.sprint:sprintFor();$('task').value=e.task||'';
   $('submit').textContent='Guardar cambios';$('cancel-edit').hidden=false;msg('');
   renderFor();renderCats();renderList();$('hours').focus();
 }
-function endEdit(){st.editing=null;st.sel=new Set(st.me?[st.me]:[]);$('submit').textContent='Guardar';$('cancel-edit').hidden=true;$('task').value='';$('hours').value='';renderFor();renderList()}
+function endEdit(){st.editing=null;st.sel=new Set([st.me||TEAM[0].id]);$('submit').textContent='Guardar';$('cancel-edit').hidden=true;$('task').value='';$('hours').value='';$('start').value='';$('end').value='';renderFor();renderList()}
 $('cancel-edit').addEventListener('click',endEdit);
 
 /* ---------- Supabase ---------- */
-const fromRow=r=>({id:r.id,member:r.member,date:r.date,hours:Number(r.hours),category:r.category,sprint:r.sprint||'',task:r.task||'',group:r.group_id,createdAt:Date.parse(r.created_at)||0});
+const fromRow=r=>({id:r.id,member:r.member,date:r.date,hours:Number(r.hours),category:r.category,sprint:r.sprint||'',task:r.task||'',group:r.group_id,start:r.start_time||'',end:r.end_time||'',createdAt:Date.parse(r.created_at)||0});
 async function load(){
   const {data,error}=await st.db.from('entries').select('*').order('date',{ascending:false}).limit(2000);
   if(error){console.error(error);$('status').textContent='No se pudo conectar con la base de datos.';return}
   st.entries=data.map(fromRow).filter(e=>e.date&&e.hours>0);st.loaded=true;$('status').textContent=st.me?'':'Elegí tu nombre';renderData();
 }
-async function delEntry(id){
+async function delItem(it){
   st.confirmDel=null;
-  const {error}=await st.db.from('entries').delete().eq('id',id);
-  if(error)writeErr(error);else{if(st.editing===id)endEdit();await load()}
+  const {error}=await st.db.from('entries').delete().in('id',it.rows.map(r=>r.id));
+  if(error)writeErr(error);else{if(st.editing&&st.editing.key===it.key)endEdit();await load()}
 }
 
-$('all-btn').addEventListener('click',()=>{
-  if(st.sel.size===TEAM.length)st.sel=new Set(st.me?[st.me]:[]);else{st.sel=new Set(TEAM.map(t=>t.id));if(st.cat==='dev'||st.cat==='doc'||st.cat==='otro'){st.cat='daily';renderCats()}}
-  renderFor()});
-document.querySelectorAll('.quick button').forEach(b=>b.addEventListener('click',()=>{$('hours').value=fmtH(+b.dataset.h)}));
+const toMin=t=>{const m=/^(\d{1,2}):(\d{2})/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
+const fromMin=m=>{m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+function syncFromTimes(){const a=toMin($('start').value),b=toMin($('end').value);if(a==null||b==null)return;let d=b-a;if(d<=0)d+=1440;$('hours').value=fmtHM(d/60)}
+$('start').addEventListener('change',()=>{const a=toMin($('start').value),h=parseHours($('hours').value);if(a!=null&&!$('end').value&&h>0)$('end').value=fromMin(a+Math.round(h*60));syncFromTimes()});
+$('end').addEventListener('change',syncFromTimes);
+$('hours').addEventListener('input',()=>{$('end').value=''});
+document.querySelectorAll('.quick button').forEach(b=>b.addEventListener('click',()=>{
+  const h=+b.dataset.h;$('hours').value=fmtHM(h);const a=toMin($('start').value);$('end').value=a!=null?fromMin(a+Math.round(h*60)):''}));
 
 $('form').addEventListener('submit',async ev=>{
   ev.preventDefault();if(!st.db)return;
@@ -414,12 +447,15 @@ $('form').addEventListener('submit',async ev=>{
   if(!st.sel.size)return msg('Elegí para quién son las horas.',true);
   if(!date)return msg('Poné la fecha.',true);
   if(!(h>0)||h>24)return msg('Las horas van entre 0 y 24. Por ejemplo: 1,5 · 1:30 · 45m',true);
+  const st0=$('start').value||null,en0=$('end').value||null;
+  if(!!st0!==!!en0)return msg('Completá "desde" y "hasta", o borrá los dos y poné solo las horas.',true);
   const sprint=$('sprint').value;
-  const base={date,hours:Math.round(h*10000)/10000,category:st.cat,sprint,task:$('task').value.trim().slice(0,500)};
+  const base={date,hours:Math.round(h*10000)/10000,category:st.cat,sprint,task:$('task').value.trim().slice(0,500),start_time:st0,end_time:en0};
   const btn=$('submit');btn.disabled=true;
   try{
     if(st.editing){
-      const {error}=await st.db.from('entries').update({...base,member:[...st.sel][0],updated_at:new Date().toISOString()}).eq('id',st.editing);
+      const ed=st.editing,upd={...base,updated_at:new Date().toISOString()};
+      const {error}=ed.group?await st.db.from('entries').update(upd).in('id',ed.ids):await st.db.from('entries').update({...upd,member:[...st.sel][0]}).eq('id',ed.ids[0]);
       if(error)throw error;
       endEdit();msg('Cambios guardados.');
     }else{
@@ -427,11 +463,13 @@ $('form').addEventListener('submit',async ev=>{
       const {error}=await st.db.from('entries').insert([...st.sel].map(m=>({...base,member:m,group_id})));
       if(error)throw error;
       msg(n>1?`Guardado para ${n} personas.`:'Guardado.');
-      $('hours').value='';$('task').value='';
-      if(n>1){st.sel=new Set(st.me?[st.me]:[]);renderFor()}
+      $('hours').value='';$('task').value='';$('start').value='';$('end').value='';
+      if(n>1){st.sel=new Set([st.me||TEAM[0].id]);renderFor()}
     }
     await load();
-  }catch(e){writeErr(e)}finally{btn.disabled=false}
+  }catch(e){
+    if(e&&/start_time|end_time/.test(e.message||''))msg('Falta actualizar la base de datos: corré el SQL nuevo en Supabase.',true);else writeErr(e)
+  }finally{btn.disabled=false}
 });
 
 ['f-sprint','f-from','f-to'].forEach(id=>$(id).addEventListener('change',renderData));
@@ -439,7 +477,7 @@ $('form').addEventListener('submit',async ev=>{
 $('csv').addEventListener('click',()=>{
   const rows=baseFiltered().slice().sort((a,b)=>a.date.localeCompare(b.date));
   const q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
-  const lines=['Fecha,Persona,Actividad,Sprint,Horas,Tarea'].concat(rows.map(e=>[e.date,q(person(e.member).name),q((catById[e.category]||catById.otro).label),q(e.sprint),q(fmtH(e.hours)),q(e.task)].join(',')));
+  const lines=['Fecha,Desde,Hasta,Persona,Actividad,Sprint,Horas,Tarea'].concat(rows.map(e=>[e.date,e.start,e.end,q(person(e.member).name),q((catById[e.category]||catById.otro).label),q(e.sprint),q(fmtH(e.hours)),q(e.task)].join(',')));
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='horas-grupo9-'+todayISO()+'.csv';
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
