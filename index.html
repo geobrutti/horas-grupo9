@@ -211,8 +211,7 @@ td.zero{color:var(--line)}
         <div class="quick" aria-label="Duraciones rápidas">
           <button type="button" data-h="0.25">0:15</button><button type="button" data-h="0.5">0:30</button><button type="button" data-h="1">1:00</button><button type="button" data-h="1.5">1:30</button><button type="button" data-h="2">2:00</button><button type="button" data-h="3">3:00</button>
         </div>
-        <div class="field"><label class="label" for="sprint">Sprint</label><input id="sprint" list="sprints" placeholder="Sprint 0"></div>
-        <datalist id="sprints"></datalist>
+        <div class="field"><label class="label" for="sprint">Sprint</label><select id="sprint"></select></div>
         <div class="field"><label class="label" for="task">Tarea</label><textarea id="task" placeholder="Ej: historias US-01 a US-05 con criterios de aceptación"></textarea></div>
         <button type="submit" class="btn primary" id="submit">Guardar</button>
         <div id="form-msg" class="msg" hidden></div>
@@ -258,6 +257,8 @@ const CATS=[
   {id:'testing',label:'Testing',c:'--k3'},
   {id:'otro',label:'Otro',c:'--k6'}
 ];
+const SPRINTS=[0,1,2,3,4,5,6].map(n=>({name:'Sprint '+n}));
+function sprintFor(){const v=ls.get('sprint');return SPRINTS.some(x=>x.name===v)?v:SPRINTS[0].name}
 const teamById=Object.fromEntries(TEAM.map(t=>[t.id,t]));
 const catById=Object.fromEntries(CATS.map(c=>[c.id,c]));
 const $=id=>document.getElementById(id);
@@ -281,7 +282,9 @@ function msg(text,err){const m=$('form-msg');m.textContent=text;m.className='msg
 
 /* setup */
 $('date').value=todayISO();
-$('sprint').value=ls.get('sprint')||'';
+$('sprint').append(...SPRINTS.map(x=>el('option',{value:x.name},x.name)));
+$('sprint').value=sprintFor();
+$('sprint').addEventListener('change',()=>ls.set('sprint',$('sprint').value));
 st.me=teamById[ls.get('me')]?ls.get('me'):'';
 if(st.me)st.sel.add(st.me);
 
@@ -302,10 +305,9 @@ function renderCats(){
   const box=$('cats');box.textContent='';
   CATS.forEach(c=>box.append(el('button',{type:'button',role:'radio','aria-checked':String(st.cat===c.id),style:`--kc:var(${c.c})`,onclick:()=>{st.cat=c.id;renderCats()}},c.label)));
 }
-function sprints(){return [...new Set(st.entries.map(e=>e.sprint).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}))}
+function sprints(){const extra=[...new Set(st.entries.map(e=>e.sprint).filter(x=>x&&!SPRINTS.some(s=>s.name===x)))];return SPRINTS.map(x=>x.name).concat(extra)}
 function renderSprints(){
   const s=sprints();
-  const dl=$('sprints');dl.textContent='';s.forEach(x=>dl.append(el('option',{value:x})));
   const f=$('f-sprint'),cur=f.value;f.textContent='';
   f.append(el('option',{value:''},'Todos'));s.forEach(x=>f.append(el('option',{value:x},x)));
   f.value=s.includes(cur)?cur:'';
@@ -381,7 +383,7 @@ function applyWrite(){$('submit').disabled=!st.db}
 function writeErr(e){console.error(e);msg('No se pudo guardar. Revisá la conexión y probá de nuevo.',true)}
 function startEdit(e){
   st.editing=e.id;st.sel=new Set([e.member]);st.cat=catById[e.category]?e.category:'otro';
-  $('date').value=e.date;$('hours').value=fmtH(e.hours);$('sprint').value=e.sprint||'';$('task').value=e.task||'';
+  $('date').value=e.date;$('hours').value=fmtH(e.hours);$('sprint').value=SPRINTS.some(x=>x.name===e.sprint)?e.sprint:sprintFor();$('task').value=e.task||'';
   $('submit').textContent='Guardar cambios';$('cancel-edit').hidden=false;msg('');
   renderFor();renderCats();renderList();$('hours').focus();
 }
@@ -412,7 +414,7 @@ $('form').addEventListener('submit',async ev=>{
   if(!st.sel.size)return msg('Elegí para quién son las horas.',true);
   if(!date)return msg('Poné la fecha.',true);
   if(!(h>0)||h>24)return msg('Las horas van entre 0 y 24. Por ejemplo: 1,5 · 1:30 · 45m',true);
-  const sprint=$('sprint').value.trim();ls.set('sprint',sprint);
+  const sprint=$('sprint').value;
   const base={date,hours:Math.round(h*10000)/10000,category:st.cat,sprint,task:$('task').value.trim().slice(0,500)};
   const btn=$('submit');btn.disabled=true;
   try{
